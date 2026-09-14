@@ -174,12 +174,11 @@ function draw(timestamp) {
       const pose = poseDetector.detectForVideo(video, timestamp);
       if (!result.landmarks.length || !pose.landmarks.length) {
         // Invalidate outstanding predictions when the subject leaves the frame.
-        sequence.reset(); epoch++;
+        sequence.missing(timestamp); epoch++;
         translation.textContent='양손과 어깨가 보이도록 동작해 주세요';
       } else {
         const features=extractFeatures(result.landmarks,result.handedness,pose.landmarks[0],video.videoWidth,video.videoHeight);
         // Keep collecting while one GRU request is running; never queue another.
-        if(timestamp-sequence.lastFrame>500) epoch++;
         const input=sequence.add(features,timestamp);
         if(sequence.frames.length<30) translation.textContent=`동작을 모으는 중 · ${sequence.frames.length} / 30`;
         if(input && !workerBusy) {

@@ -204,7 +204,7 @@ public final class HandCameraView implements PlatformView, Application.ActivityL
                 result = landmarker.detectForVideo(image, timestamp);
                 PoseLandmarkerResult pose = poseLandmarker.detectForVideo(image, timestamp);
                 if (result.landmarks().isEmpty() || pose.landmarks().isEmpty()) {
-                    translator.reset();
+                    translator.missing(timestamp);
                     translated = "양손과 어깨가 보이도록 동작해 주세요";
                 } else {
                     float[][] right = null, left = null;

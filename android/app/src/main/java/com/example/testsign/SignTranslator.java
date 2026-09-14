@@ -13,8 +13,7 @@ final class SignTranslator implements AutoCloseable {
     private final OrtEnvironment environment = OrtEnvironment.getEnvironment();
     private final OrtSession session;
     private final String[] labels = new String[112];
-    private final ArrayDeque<float[]> frames = new ArrayDeque<>();
-    private long lastFrame = -1, lastPrediction = -1;
+    private final SignSequence sequence = new SignSequence();
 
     SignTranslator(AssetManager assets) throws Exception {
         JSONObject map = new JSONObject(new String(read(assets,"data/core_label_map.json"),StandardCharsets.UTF_8));
@@ -41,19 +40,14 @@ final class SignTranslator implements AutoCloseable {
             return output.toByteArray();
         }
     }
-    void reset() { frames.clear(); lastFrame=-1; lastPrediction=-1; }
+    void reset() { sequence.reset(); }
+    void missing(long timestamp) { sequence.missing(timestamp); }
 
     String add(float[] features,long timestamp) throws OrtException {
-        if(lastFrame>=0 && timestamp-lastFrame>500) reset();
-        lastFrame=timestamp;
-        frames.add(features);
-        if(frames.size()>30) frames.removeFirst();
-        if(frames.size()<30) return "동작을 모으는 중 · "+frames.size()+" / 30";
-        if(lastPrediction>=0 && timestamp-lastPrediction<1000) return null;
-        lastPrediction=timestamp;
-        FloatBuffer buffer=FloatBuffer.allocate(30*150);
-        for(float[] frame:frames) buffer.put(frame);
-        buffer.rewind();
+        float[] featuresWindow=sequence.add(features,timestamp);
+        if(sequence.size()<30) return "동작을 모으는 중 · "+sequence.size()+" / 30";
+        if(featuresWindow==null) return null;
+        FloatBuffer buffer=FloatBuffer.wrap(featuresWindow);
         try(OnnxTensor input=OnnxTensor.createTensor(environment,buffer,new long[]{1,30,150});
             OrtSession.Result result=session.run(Collections.singletonMap("features",input))) {
             float[] logits=((float[][])result.get(0).getValue())[0];
@@ -66,8 +60,7 @@ final class SignTranslator implements AutoCloseable {
             double sum=0;
             for(float value:logits) sum+=Math.exp(value-logits[best]);
             double confidence=1/sum;
-            return confidence>=0.6 ? labels[best]+" · "+Math.round(confidence*100)+"%"
-                : "동작이 불확실해요 · 다시 보여 주세요";
+            return labels[best]+" · "+Math.round(confidence*100)+"%";
         }
     }
     @Override public void close() throws OrtException { reset(); session.close(); }

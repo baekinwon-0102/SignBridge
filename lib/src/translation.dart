@@ -72,7 +72,7 @@ class _TranslationPageState extends State<TranslationPage> {
         const Panel(
           child: Text(
             '양손과 어깨가 카메라에 보이도록 수화를 해 주세요. 동작을 모아 카메라 위에 인식한 단어와 신뢰도를 표시합니다.\n\n'
-            '학습된 112개 수화 클래스를 인식합니다. 결과가 불확실하면 동작을 다시 보여 주세요. 명령 실행은 예시 화면을 체험하는 기능입니다.',
+            '학습된 112개 수화 클래스를 인식합니다. 테스트를 위해 신뢰도가 낮아도 가장 높은 점수의 단어를 표시합니다. 명령 실행은 예시 화면을 체험하는 기능입니다.',
             style: TextStyle(height: 1.6, color: muted),
           ),
         ),

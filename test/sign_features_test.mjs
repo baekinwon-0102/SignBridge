@@ -23,18 +23,45 @@ test('Only full sequences infer, at most once per second, with a bounded window'
   for(let i=31;i<44;i++) sequence.add(new Float32Array(150),i*67);
   assert.ok(sequence.add(new Float32Array(150),44*67));
   assert.equal(sequence.frames.length,30);
-  assert.equal(sequence.add(new Float32Array(150),5000),null);
+  assert.ok(sequence.add(new Float32Array(150),5000));
+  assert.equal(sequence.frames.length,30);
+  sequence.reset(); assert.equal(sequence.frames.length,0);
+});
+test('Slow inference still collects 30 frames instead of resetting to 1/30',()=> {
+  const sequence=new SignSequence();
+  for(let i=0;i<29;i++) {
+    assert.equal(sequence.add(new Float32Array(150),i*1200),null);
+    assert.equal(sequence.frames.length,i+1);
+  }
+  assert.equal(sequence.add(new Float32Array(150),29*1200).length,4500);
+});
+test('Brief tracking loss preserves frames; sustained absence and stop clear them',()=> {
+  const sequence=new SignSequence(),frame=new Float32Array(150);
+  sequence.add(frame,0);
+  sequence.missing(100);
+  sequence.add(frame,700);
+  assert.equal(sequence.frames.length,2);
+  sequence.missing(800);
+  sequence.missing(2300);
+  assert.equal(sequence.frames.length,0);
+  sequence.add(frame,2400);
+  assert.equal(sequence.frames.length,1);
+  // A slow next detection must also expire an already observed absence.
+  sequence.missing(2500);
+  sequence.add(frame,4500);
   assert.equal(sequence.frames.length,1);
   sequence.reset(); assert.equal(sequence.frames.length,0);
 });
-test('Korean labels follow the class index and uncertain predictions are rejected',()=> {
+test('Korean labels follow the class index even at low confidence',()=> {
   const map=JSON.parse(readFileSync(new URL('../assets/data/core_label_map.json',import.meta.url)));
   const words=JSON.parse(readFileSync(new URL('../assets/data/core_ksl_word_dictionary.json',import.meta.url)));
   const labels=[];
   for(const [word,index] of Object.entries(map)) labels[index]=words[word];
   const logits=new Float32Array(112); logits[49]=20;
   assert.equal(predictionText(logits,labels),'감사 · 100%');
-  assert.match(predictionText(new Float32Array(112),labels),/불확실/);
+  assert.equal(predictionText(new Float32Array(112),labels),'고민 · 1%');
+  const lowConfidence=new Float32Array(112); lowConfidence[49]=1;
+  assert.equal(predictionText(lowConfidence,labels),'감사 · 2%');
   logits[0]=NaN;
   assert.throws(()=>predictionText(logits,labels),/Invalid/);
 });

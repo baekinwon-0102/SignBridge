@@ -51,10 +51,18 @@ export function extractFeatures(hands, handedness, poseLandmarks, w, h) {
 
 export class SignSequence {
   constructor() { this.reset(); }
-  reset() { this.frames=[]; this.lastFrame=-Infinity; this.lastPrediction=-Infinity; }
+  reset() { this.frames=[]; this.missingSince=null; this.lastPrediction=-Infinity; }
+  missing(timestamp) {
+    if (this.missingSince===null) this.missingSince=timestamp;
+    if (timestamp-this.missingSince>=1500) {
+      this.frames=[];
+      this.lastPrediction=-Infinity;
+    }
+  }
   add(features, timestamp) {
-    if (timestamp-this.lastFrame>500) this.reset();
-    this.lastFrame=timestamp;
+    // Processing latency is not loss of tracking. Only observed absence resets.
+    if (this.missingSince!==null && timestamp-this.missingSince>=1500) this.reset();
+    this.missingSince=null;
     this.frames.push(features);
     if (this.frames.length>30) this.frames.shift();
     if (this.frames.length<30 || timestamp-this.lastPrediction<1000) return null;
@@ -71,6 +79,5 @@ export function predictionText(logits, labels) {
   }
   const best=Array.from(logits).reduce((a,_,i)=>logits[i]>logits[a]?i:a,0);
   const confidence=1/Array.from(logits).reduce((sum,v)=>sum+Math.exp(v-logits[best]),0);
-  return confidence>=0.6 ? `${labels[best]} · ${Math.round(confidence*100)}%`
-    : '동작이 불확실해요 · 다시 보여 주세요';
+  return `${labels[best]} · ${Math.round(confidence*100)}%`;
 }

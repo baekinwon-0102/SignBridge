@@ -44,17 +44,21 @@ const mime={'.html':'text/html','.js':'application/javascript','.mjs':'applicati
     await page.route('**/vision_bundle.mjs',route=>route.fulfill({contentType:'application/javascript',body:`
       const f=${JSON.stringify(fixture)};
       export const FilesetResolver={forVisionTasks:async()=>({})};
-      export const HandLandmarker={createFromOptions:async()=>({close(){},detectForVideo(){return {
+      export const HandLandmarker={createFromOptions:async()=>({close(){},detectForVideo(){
+        const start=performance.now();
+        while(performance.now()-start<${Number(process.env.SIGN_TEST_FRAME_DELAY_MS)||0}) {}
+        return {
         landmarks:window.landmarksVisible?[f.right,f.left]:[],
         handedness:[[{categoryName:'Right'}],[{categoryName:'Left'}]]};}})};
       export const PoseLandmarker={createFromOptions:async()=>({close(){},detectForVideo(){return {landmarks:[f.pose]};}})};
     `}));
     await page.goto(url);
     await page.locator('#start').click();
-    await page.waitForFunction(()=>/수화 모델|동작을 모으는|불확실|%/.test(document.querySelector('#translation').textContent));
-    await page.waitForFunction(()=>/불확실|%/.test(document.querySelector('#translation').textContent),{},{timeout:60000});
+    await page.waitForFunction(()=>/수화 모델|동작을 모으는|%/.test(document.querySelector('#translation').textContent));
+    await page.waitForFunction(()=>/%/.test(document.querySelector('#translation').textContent),{},{timeout:60000});
     const result=await page.locator('#translation').textContent();
     console.log('Camera pipeline result:',result);
+    assert.match(result,/[가-힣]+ · \d+%/);
     const box=await page.locator('.translation').boundingBox(),cameraBox=await page.locator('.preview').boundingBox();
     assert.ok(box.y+box.height<=cameraBox.y+1,'Translation must sit above camera');
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);

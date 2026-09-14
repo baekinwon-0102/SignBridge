@@ -19,3 +19,5 @@ with (out/'features.bin').open('wb') as f:
         f.write(struct.pack('>150f',*c['expected']))
 subprocess.run(['javac','-encoding','UTF-8','-d',str(out),str(root/'android/app/src/main/java/com/example/testsign/SignFeatures.java'),str(root/'test/SignFeaturesCheck.java')],check=True)
 subprocess.run(['java','-cp',str(out),'SignFeaturesCheck',str(out/'features.bin')],check=True)
+subprocess.run(['javac','-encoding','UTF-8','-d',str(out),str(root/'android/app/src/main/java/com/example/testsign/SignSequence.java'),str(root/'test/SignSequenceCheck.java')],check=True)
+subprocess.run(['java','-cp',str(out),'com.example.testsign.SignSequenceCheck'],check=True)
