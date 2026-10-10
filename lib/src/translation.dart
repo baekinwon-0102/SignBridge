@@ -32,7 +32,10 @@ class _TranslationPageState extends State<TranslationPage>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _foreground = state == AppLifecycleState.resumed;
-    if (!_foreground) _gate.armed = false;
+    if (!_busy) {
+      _status =
+          _foreground ? '자동 실행 대기 중 · 수어를 보여 주세요.' : '앱으로 돌아오면 자동 실행을 계속합니다.';
+    }
     if (mounted) setState(() {});
   }
 
@@ -43,8 +46,18 @@ class _TranslationPageState extends State<TranslationPage>
         ModalRoute.of(context)?.isCurrent != true) {
       return;
     }
-    setState(() => _translation = prediction.text);
     final command = _gate.accept(prediction);
+    setState(() {
+      _translation = prediction.text;
+      // Keep the action result/error visible while the same sign is held.
+      if (_gate.armed) {
+        _status = prediction.text.isEmpty
+            ? '자동 실행 대기 중 · 수어를 보여 주세요.'
+            : prediction.confidence.isFinite
+                ? '신뢰도 ${(prediction.confidence * 100).floor()}% · 75% 이상이면 자동 실행합니다.'
+                : '인식 결과를 다시 확인하는 중입니다.';
+      }
+    });
     if (command != null) _execute(command);
   }
 
@@ -58,6 +71,14 @@ class _TranslationPageState extends State<TranslationPage>
     if (command == null) return;
     setState(() => _translation = word);
     _execute(command);
+  }
+
+  void _restartRecognition() {
+    setState(() {
+      _gate.reset();
+      _translation = '';
+      _status = _developerMode ? '테스트할 단어를 눌러 주세요.' : '새 동작을 보여 주세요.';
+    });
   }
 
   Future<void> _execute(String command) async {
@@ -84,7 +105,10 @@ class _TranslationPageState extends State<TranslationPage>
           context: context, builder: (_) => _CompanyDialog(initial: saved));
       if (value == null || !mounted) return;
       await _actions.saveCompany(value);
-      if (mounted) setState(() => _status = '회사 위치를 저장했습니다.');
+      if (mounted) {
+        _gate.reset();
+        setState(() => _status = '회사 위치를 저장했습니다.');
+      }
     } catch (error) {
       if (mounted) setState(() => _status = '$error');
     } finally {
@@ -152,20 +176,14 @@ class _TranslationPageState extends State<TranslationPage>
             if (_busy) const Center(child: Text('처리 중…')),
             if (!_developerMode && !_gate.armed && !_busy) ...[
               gap,
-              PrimaryButton(
-                  '다시 인식하기',
-                  () => setState(() {
-                        _gate.reset();
-                        _translation = '';
-                        _status = '인식 대기 중';
-                      }))
+              PrimaryButton('다시 인식하기', _restartRecognition)
             ],
             gap,
             Panel(
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: const [
-                  Text('아프다 / 구급차 / 의사 → 긴급신고 · 119 전화'),
+                  Text('아프다 → 긴급신고 · 119 전화'),
                   SizedBox(height: 12),
                   Text('회사 → 등록한 회사로 네이버맵 길찾기'),
                   SizedBox(height: 12),
@@ -179,7 +197,7 @@ class _TranslationPageState extends State<TranslationPage>
                 child: const Text('회사 위치 등록 / 변경')),
             gap,
             const Text(
-                '신뢰도 85% 이상인 단어를 인식하면 자동 실행합니다. 같은 동작의 반복 실행을 막기 위해 실행 후 다시 인식하기를 눌러 주세요.'),
+                '신뢰도 75% 이상이면 바로 실행합니다. 다른 단어는 버튼 없이 계속 실행됩니다. 같은 단어를 다시 실행하려면 손을 잠시 내렸다가 다시 보여 주세요.'),
             const SizedBox(height: 12),
             const Text(
                 '119는 전화 앱에서 통화 버튼을 눌러 발신합니다. 연락처 전화와 볼륨 조절은 Android 앱에서 지원합니다.',

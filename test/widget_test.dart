@@ -62,8 +62,11 @@ void main() {
       await tester.pumpAndSettle();
       final predict =
           tester.widget<HandCamera>(find.byType(HandCamera)).onPrediction!;
+      predict(SignPrediction(entry.key, .749));
+      await tester.pumpAndSettle();
+      expect(calls, isEmpty);
       for (var i = 0; i < 10; i++) {
-        predict(SignPrediction(entry.key, .99));
+        predict(SignPrediction(entry.key, .75));
       }
       await tester.pumpAndSettle();
       expect(calls.single.method, entry.value);

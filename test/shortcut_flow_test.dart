@@ -6,6 +6,36 @@ import 'package:testsign/src/hand_camera/hand_camera.dart';
 import 'package:testsign/src/sign_commands.dart';
 
 void main() {
+  testWidgets('Temporary permission dialog does not disable automatic actions',
+      (tester) async {
+    final calls = <MethodCall>[];
+    const channel = MethodChannel('signbridge/actions');
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel,
+        (call) async {
+      calls.add(call);
+      return '미디어 볼륨을 올렸습니다.';
+    });
+    addTearDown(() => tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, null));
+    await tester.pumpWidget(const SignBridgeApp());
+    final predict =
+        tester.widget<HandCamera>(find.byType(HandCamera)).onPrediction!;
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    predict(const SignPrediction('위', .99));
+    expect(calls, isEmpty);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    predict(SignPrediction.fromDisplay('위 · 75%')!);
+    await tester.pumpAndSettle();
+    expect(calls.single.method, 'volumeUp');
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.text('미디어 볼륨을 올렸습니다.'), findsOneWidget);
+    predict(const SignPrediction('위', .99));
+    await tester.pumpAndSettle();
+    expect(calls.length, 1);
+    expect(find.text('번역: 위'), findsOneWidget);
+    expect(find.text('미디어 볼륨을 올렸습니다.'), findsOneWidget);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
   testWidgets('Company registration validates and persists coordinates',
       (tester) async {
     final calls = <MethodCall>[];
@@ -52,9 +82,6 @@ void main() {
     predict(const SignPrediction('엄마', .99));
     expect(calls, 0);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-    await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('다시 인식하기'));
-    await tester.tap(find.text('다시 인식하기'));
     await tester.pumpAndSettle();
     predict(const SignPrediction('엄마', .99));
     await tester.pumpAndSettle();
