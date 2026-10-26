@@ -242,7 +242,7 @@ class _DemoHomeState extends State<DemoHome> {
                       TextButton(
                           onPressed: emergency
                               ? () => message('단축키 안내',
-                                  '아프다: 119 발신 화면\n회사: 등록한 회사로 길찾기\n엄마: 연락처의 엄마에게 전화\n위 / 아래: 미디어 볼륨 조절\n\n단축키 실행 화면에서 PiP 백그라운드 실행을 사용할 수 있습니다.')
+                                  '아프다: 119 발신 화면\n회사: 등록한 회사로 길찾기\n엄마: 연락처의 엄마에게 전화\n위 / 아래: 미디어 볼륨 조절\n\n단축키 실행 화면에서 백그라운드 인식과 PiP 표시를 설정할 수 있습니다. 창이 없을 때 전화·길찾기는 실행 알림을 눌러 주세요.')
                               : openGuide,
                           child: Row(children: [
                             Icon(emergency ? Icons.apps : Icons.help_outline,
